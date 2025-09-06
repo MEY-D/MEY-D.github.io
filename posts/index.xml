@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8" standalone="yes"?>
+<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom">
+  <channel>
+    <title>Posts on blog</title>
+    <link>/posts/</link>
+    <description>Recent content in Posts on blog</description>
+    <generator>Hugo</generator>
+    <language>en-US</language>
+    <managingEditor>mehdi29070@gmail.com (Author)</managingEditor>
+    <webMaster>mehdi29070@gmail.com (Author)</webMaster>
+    <lastBuildDate>Sat, 06 Sep 2025 01:55:32 +0100</lastBuildDate>
+    <atom:link href="/posts/index.xml" rel="self" type="application/rss+xml" />
+    <item>
+      <title>zero-click-ato-persian-versian</title>
+      <link>/posts/zero-click-ato-persian/</link>
+      <pubDate>Sat, 06 Sep 2025 01:55:32 +0100</pubDate><author>mehdi29070@gmail.com (Author)</author>
+      <guid>/posts/zero-click-ato-persian/</guid>
+      <description>&lt;div dir=&#34;rtl&#34;  style=&#34;font-family: Vazirmatn, Tahoma, Arial; font-size: 18px; line-height: 1.8;&#34;&gt;&#xA;&lt;p&gt;سلام من &#xA;&lt;a href=&#34;https://x.com/mehdiparandin?s=21&#34;&#xA;   &#xA;     target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&#xA;   &gt;&#xA;   مهدی ام&#xA;&lt;/a&gt; و این اولین write-up من به فارسیه.&lt;br&gt;&#xA;توی این مقاله می‌خوام یکی از باگ‌هام رو که تبدیل به Zero Click Account Takeover شد قدم به قدم توضیح بدم. اگه تازه‌کاری، احتمالا به کارت بیاد.&lt;/p&gt;&#xA;&lt;hr&gt;&#xA;&lt;h3 id=&#34;مقدمه&#34;&gt;مقدمه&lt;/h3&gt;&#xA;&lt;p&gt;برخلاف خیلی‌ها، وقتی یه target انتخاب می‌کنم، اول میرم سراغ بخش‌های ساده مثل Contact Us و صفحات فرعی. چرا؟ چون معمولا ساده نوشته شدن و راحت‌تر می‌شه طرز فکر developer رو خوند.&lt;br&gt;&#xA;البته که می‌تونی مستقیم بری سراغ بخش‌های سخت تر مثل authentication&lt;/p&gt;</description>
+    </item>
+    <item>
+      <title>Exploiting Self-XSS Using Disk Cache</title>
+      <link>/posts/self-xss-disk-cache/</link>
+      <pubDate>Mon, 14 Jul 2025 15:29:01 +0100</pubDate><author>mehdi29070@gmail.com (Author)</author>
+      <guid>/posts/self-xss-disk-cache/</guid>
+      <description>&lt;p&gt;&lt;strong&gt;Think about a situation where you have a self-XSS and you can&amp;rsquo;t do anything with it — What would your next move be?&lt;/strong&gt;&lt;/p&gt;&#xA;&lt;p&gt;&#xA;&lt;a href=&#34;https://x.com/slonser_?s=21&#34;&#xA;   &#xA;     target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&#xA;   &gt;&#xA;   slonser&#xA;&lt;/a&gt; has a great &#xA;&lt;a href=&#34;https://blog.slonser.info/posts/make-self-xss-great-again/&#34;&#xA;   &#xA;     target=&#34;_blank&#34; rel=&#34;noopener noreferrer&#34;&#xA;   &gt;&#xA;   write-up&#xA;&lt;/a&gt; that explains everything about exploiting self-XSS, so I won’t repeat those details here. But I’ll focus on one interesting technique.&#xA;One of the ways to exploit a self-XSS is to force the victim to log in to &lt;strong&gt;your&lt;/strong&gt; account, then run your self-XSS.&lt;br&gt;&#xA;Maybe you think the only way to do this is through a login CSRF — and if that&amp;rsquo;s the case, you&amp;rsquo;re wrong.&lt;br&gt;&#xA;There are several other ways to achieve this, like using &lt;em&gt;forgot password&lt;/em&gt;, &lt;em&gt;magic link&lt;/em&gt;, &lt;em&gt;user invite link&lt;/em&gt;, etc.&lt;/p&gt;</description>
+    </item>
+  </channel>
+</rss>
